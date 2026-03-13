@@ -1,42 +1,44 @@
-from typing import Any, Callable, List, Dict, Optional, Union, Tuple, no_type_check
+from typing import Any, Callable, List, Dict, Optional, Tuple, no_type_check
+
 from enum import Enum
+
 import datetime
+
 import json
 
 from anki.hooks import wrap
-from aqt import mw, gui_hooks
-from aqt.qt import *
-from aqt.utils import tooltip
-from aqt.webview import AnkiWebView, WebContent
-import aqt
 
+from aqt import mw, gui_hooks
+
+from aqt.qt import *
+
+from aqt.utils import tooltip
+
+from aqt.webview import AnkiWebView, WebContent
+
+import aqt
 
 def WEBVIEW_TARGETS() -> List[AnkiWebView]:
     # Implemented as a function so attributes are resolved when called.
     # In case mw.web is reassigned to a different object
     return [mw.web, mw.bottomWeb]
 
-
 config = mw.addonManager.getConfig(__name__)
-
 
 def refresh_config() -> None:
     global config
     config = mw.addonManager.getConfig(__name__)
     manager.refresh_shortcuts()
 
-
 def turn_on() -> None:
     if not manager.enabled:
         manager.enable()
         tooltip("Enabled hotmouse")
 
-
 def turn_off() -> None:
     if manager.enabled:
         manager.disable()
         tooltip("Disabled hotmouse")
-
 
 def toggle_on_off() -> None:
     if manager.enabled:
@@ -46,55 +48,73 @@ def toggle_on_off() -> None:
         manager.enable()
         tooltip("Enabled hotmouse")
 
+# event.py
 
 def answer_again() -> None:
-    if mw.reviewer.state == "question":
-        mw.reviewer.state = "answer"
-    mw.reviewer._answerCard(1)
-
+    if mw.reviewer.state == "answer":
+        mw.reviewer._answerCard(1)
 
 def answer_hard() -> None:
-    if mw.reviewer.state == "question":
-        mw.reviewer.state = "answer"
-    cnt = mw.col.sched.answerButtons(mw.reviewer.card)
-    if cnt == 4:
-        mw.reviewer._answerCard(2)
-
+    if mw.reviewer.state == "answer":
+        cnt = mw.col.sched.answerButtons(mw.reviewer.card)
+        if cnt == 4:
+            mw.reviewer._answerCard(2)
 
 def answer_good() -> None:
-    if mw.reviewer.state == "question":
-        mw.reviewer.state = "answer"
-    cnt = mw.col.sched.answerButtons(mw.reviewer.card)
-    if cnt == 2:
-        mw.reviewer._answerCard(2)
-    elif cnt == 3:
-        mw.reviewer._answerCard(2)
-    elif cnt == 4:
-        mw.reviewer._answerCard(3)
-
+    if mw.reviewer.state == "answer":
+        cnt = mw.col.sched.answerButtons(mw.reviewer.card)
+        if cnt == 2:
+            mw.reviewer._answerCard(2)
+        elif cnt == 3:
+            mw.reviewer._answerCard(2)
+        elif cnt == 4:
+            mw.reviewer._answerCard(3)
 
 def answer_easy() -> None:
-    if mw.reviewer.state == "question":
-        mw.reviewer.state = "answer"
-    cnt = mw.col.sched.answerButtons(mw.reviewer.card)
-    if cnt == 3:
-        mw.reviewer._answerCard(3)
-    elif cnt == 4:
-        mw.reviewer._answerCard(4)
+    if mw.reviewer.state == "answer":
+        cnt = mw.col.sched.answerButtons(mw.reviewer.card)
+        if cnt == 3:
+            mw.reviewer._answerCard(3)
+        elif cnt == 4:
+            mw.reviewer._answerCard(4)
 
+def _study_now_from_overview() -> None:
+    """Trigger the Overview 'Study Now' action if available."""
+    if mw.state != "overview" or not hasattr(mw, "overview") or mw.overview is None:
+        return
+    try:
+        if hasattr(mw.overview, "onStudy") and callable(mw.overview.onStudy):  # type: ignore[attr-defined]
+            mw.overview.onStudy()  # type: ignore[attr-defined]
+            return
+    except Exception:
+        pass
+    try:
+        if hasattr(mw.overview, "_linkHandler") and callable(mw.overview._linkHandler):  # type: ignore[attr-defined]
+            mw.overview._linkHandler("study")  # type: ignore[attr-defined]
+            return
+    except Exception:
+        pass
 
-def toggle_auto_advance() -> None:
-    # This method was added v23.12
-    if hasattr(mw.reviewer, "toggle_auto_advance"):
-        mw.reviewer.toggle_auto_advance()
-    else:
-        tooltip(
-            "Review Hotmouse: Your Anki version does not support 'toggle_auto_advance'"
-        )
+def _go_deck_browser() -> None:
+    """Navigate to the Deck Browser (same as pressing D)."""
+    try:
+        if hasattr(mw, "onDeckBrowser") and callable(mw.onDeckBrowser):
+            mw.onDeckBrowser()
+        elif hasattr(mw, "moveToState"):
+            mw.moveToState("deckBrowser")  # type: ignore[arg-type]
+    except Exception:
+        pass
 
+def _is_congrats_screen() -> bool:
+    """Heuristic for the 'Congratulations' summary screen."""
+    if mw.state != "review":
+        return False
+    r = getattr(mw, "reviewer", None)
+    rstate = getattr(r, "state", None)
+    return rstate not in ("question", "answer")
 
-ACTIONS = {
-    "<none>": lambda: None,
+ACTIONS: Dict[str, Callable[[], None]] = {
+    "": lambda: None,
     "on": turn_on,
     "off": turn_off,
     "on_off": toggle_on_off,
@@ -117,13 +137,13 @@ ACTIONS = {
     "audio": lambda: mw.reviewer.replayAudio(),
     "record_voice": lambda: mw.reviewer.onRecordVoice(),
     "replay_voice": lambda: mw.reviewer.onReplayRecorded(),
-    "replay_audio": lambda: mw.reviewer.replayAudio(),
-    "toggle_auto_advance": toggle_auto_advance,
-    "copy": lambda: mw.reviewer.web.triggerPageAction(QWebEnginePage.WebAction.Copy),
-    "paste": lambda: mw.reviewer.web.triggerPageAction(QWebEnginePage.WebAction.Paste),
+    # Overview
+    "study_now": _study_now_from_overview,
+    # New: go to Deck Browser (for o_* and c_* mappings)
+    "deck_browser": _go_deck_browser,
 }
-ACTION_OPTS = list(ACTIONS.keys())
 
+ACTION_OPTS = list(ACTIONS.keys())
 
 class Button(Enum):
     left = Qt.MouseButton.LeftButton
@@ -131,15 +151,6 @@ class Button(Enum):
     middle = Qt.MouseButton.MiddleButton
     xbutton1 = Qt.MouseButton.XButton1
     xbutton2 = Qt.MouseButton.XButton2
-
-    @classmethod
-    def from_qt(cls, btn: Qt.MouseButton) -> Optional["Button"]:
-        try:
-            return Button(btn)
-        except ValueError:
-            print(f"Review Hotmouse: Unknown Button Pressed: {btn}")
-            return None
-
 
 class WheelDir(Enum):
     DOWN = -1
@@ -157,7 +168,7 @@ class WheelDir(Enum):
 
     @classmethod
     def from_web(cls, delta: int) -> Optional["WheelDir"]:
-        """web and qt has opposite delta sign"""
+        # web and qt have opposite delta sign
         if delta < 0:
             return cls.UP
         elif delta > 0:
@@ -165,13 +176,13 @@ class WheelDir(Enum):
         else:
             return None
 
-
 class HotmouseManager:
     has_wheel_hotkey: bool
 
     def __init__(self) -> None:
         self.enabled = config["default_enabled"]
         self.last_scroll_time = datetime.datetime.now()
+        self.last_click_time = datetime.datetime.now()  # NEW: Track last click time
         self.add_menu()
         self.refresh_shortcuts()
 
@@ -182,11 +193,7 @@ class HotmouseManager:
         self.update_menu()
 
     def update_menu(self) -> None:
-        if self.enabled:
-            label = "Disable Review Hotmouse"
-        else:
-            label = "Enable Review Hotmouse"
-        self.action.setText(label)
+        self.action.setText("Disable Review Hotmouse" if self.enabled else "Enable Review Hotmouse")
 
     def enable(self) -> None:
         self.enabled = True
@@ -197,23 +204,18 @@ class HotmouseManager:
         self.update_menu()
 
     def refresh_shortcuts(self) -> None:
-        self.has_wheel_hotkey = False
-        for shortcut in config["shortcuts"]:
-            if "wheel" in shortcut:
-                self.has_wheel_hotkey = True
-                break
+        self.has_wheel_hotkey = any("wheel" in s for s in config["shortcuts"].keys())
         print("has wheel", self.has_wheel_hotkey)
 
     def uses_btn(self, btn: Button) -> bool:
-        for shortcut in config["shortcuts"]:
-            if btn.name in shortcut:
-                return True
-        return False
+        return any(btn.name in s for s in config["shortcuts"].keys())
+
+    def uses_btn_in_scope(self, scope: str, btn: Button) -> bool:
+        return any(k.startswith(f"{scope}_") and btn.name in k for k in config["shortcuts"].keys())
 
     @staticmethod
     def get_pressed_buttons(qbuttons: "Qt.MouseButton") -> List[Button]:
-        """Returns list of pressed button names, excluding the button that caused the trigger"""
-        buttons = []
+        buttons: List[Button] = []
         for b in Button:
             if qbuttons & b.value:  # type: ignore
                 buttons.append(b)
@@ -225,65 +227,91 @@ class HotmouseManager:
         wheel: Optional[WheelDir] = None,
         click: Optional[Button] = None,
     ) -> str:
-        """One and only one of wheel or click must be passed as an argument."""
-        if mw.reviewer.state == "question":
-            shortcut_key_str = "q"
-        elif mw.reviewer.state == "answer":
-            shortcut_key_str = "a"
+        # Overview / Reviewer (question/answer/congrats) scopes
+        if mw.state == "overview":
+            scope = "o"
+        elif mw.state == "review":
+            if mw.reviewer.state == "question":
+                scope = "q"
+            elif mw.reviewer.state == "answer":
+                scope = "a"
+            else:
+                scope = "c"  # congratulations/summary
         else:
-            shortcut_key_str = "x"  # ignore transition
+            scope = "x"
 
+        parts: List[str] = [scope]
         for btn in btns:
-            shortcut_key_str += "_press_{}".format(btn.name)
+            parts.append(f"press_{btn.name}")
         if click:
-            shortcut_key_str += "_click_{}".format(click.name)
+            parts.append(f"click_{click.name}")
         if wheel == WheelDir.UP:
-            shortcut_key_str += "_wheel_up"
+            parts.append("wheel_up")
         elif wheel == WheelDir.DOWN:
-            shortcut_key_str += "_wheel_down"
-        return shortcut_key_str
+            parts.append("wheel_down")
+        return "_".join(parts)
 
     def execute_shortcut(self, hotkey_str: str) -> bool:
-        """Returns True if shortcut exists and is executed."""
         if self.enabled and config["z_debug"]:
             tooltip(hotkey_str)
-        shortcuts = config["shortcuts"]
-        if hotkey_str in shortcuts:
-            action_str = shortcuts[hotkey_str]
-        else:
-            action_str = ""
+
+        action_str = config["shortcuts"].get(hotkey_str, "")
 
         if not self.enabled and action_str not in ("on", "on_off"):
             return False
+
         if not action_str:
             return False
+
         if config["tooltip"]:
             tooltip(action_str)
-        ACTIONS[action_str]()
+
+        ACTIONS[action_str]()  # run action
+
+        # Let rating happen immediately after showing the answer
+        if action_str == "show_ans":
+            self.last_scroll_time -= datetime.timedelta(
+                milliseconds=config.get("threshold_wheel_ms", 350) + 1
+            )
+
         return True
 
     def on_mouse_press(self, event: QMouseEvent) -> bool:
-        """Returns True if shortcut is executed"""
+        # NEW: Add click threshold check
+        curr_time = datetime.datetime.now()
+        time_diff = curr_time - self.last_click_time
+        click_threshold_ms = config.get("threshold_click_ms", 0)
+        
+        # If threshold is set and not enough time has passed, ignore this click
+        if click_threshold_ms > 0 and time_diff.total_seconds() * 1000 < click_threshold_ms:
+            return self.enabled
+        
+        self.last_click_time = curr_time  # Update last click time
+        
         btns = self.get_pressed_buttons(event.buttons())
-        pressed = Button.from_qt(event.button())
-        if pressed is None:
+        btn = event.button()
+        try:
+            pressed = Button(event.button())
+            if pressed in btns:
+                btns.remove(pressed)
+        except ValueError:
+            print(f"Review Hotmouse: Unknown Button Pressed: {btn}")
             return False
-        btns.remove(pressed)
+
         hotkey_str = self.build_hotkey(btns, click=pressed)
         return self.execute_shortcut(hotkey_str)
 
     def on_mouse_scroll(self, event: QWheelEvent) -> bool:
-        """Returns True if shortcut is executed"""
         wheel_dir = WheelDir.from_qt(event.angleDelta())
         if wheel_dir is None:
             return False
         return self.handle_scroll(wheel_dir, event.buttons())
 
     def handle_scroll(self, wheel_dir: WheelDir, qbtns: "Qt.MouseButton") -> bool:
-        """Returns True if shortcut is executed"""
         curr_time = datetime.datetime.now()
         time_diff = curr_time - self.last_scroll_time
         self.last_scroll_time = curr_time
+
         if time_diff.total_seconds() * 1000 > config["threshold_wheel_ms"]:
             btns = self.get_pressed_buttons(qbtns)
             hotkey_str = self.build_hotkey(btns, wheel=wheel_dir)
@@ -291,61 +319,79 @@ class HotmouseManager:
         else:
             return self.enabled
 
-
 class HotmouseEventFilter(QObject):
     @no_type_check
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        """Because Mouse events are triggered on QWebEngineView's child widgets.
+        # Single path: let the hotkey system handle both Overview and Review (incl. Congrats)
+        if event.type() == QEvent.Type.MouseButtonPress:
+            if isinstance(event, QMouseEvent) and manager.on_mouse_press(event):
+                return True
 
-        Event propagation is only stopped when shortcut is triggered.
-        This is so clicking on answer buttons and selecting text works.
-        And `left_click` shortcut should be discouraged because of above.
-        """
-        if mw.state == "review":
-            if event.type() == QEvent.Type.MouseButtonPress:
-                if manager.on_mouse_press(event):
+        # Swallow context menu when right-click is bound in current scope
+        if event.type() == QEvent.Type.ContextMenu:
+            # Overview
+            if mw.state == "overview" and manager.uses_btn_in_scope("o", Button.right):
+                return True
+            # Review: question/answer
+            if mw.state == "review" and manager.enabled and manager.uses_btn(Button.right):
+                rstate = getattr(mw.reviewer, "state", None)
+                if rstate in ("question", "answer"):
                     return True
-            elif event.type() == QEvent.Type.MouseButtonRelease:
-                if manager.enabled:
-                    btn = Button.from_qt(event.button())
-                    if btn is None:
+            # Congrats as its own scope
+            if _is_congrats_screen() and manager.uses_btn_in_scope("c", Button.right):
+                return True
+
+        # Native Qt wheel only used during reviewer; Overview wheel comes via JS
+        if mw.state == "review" and event.type() == QEvent.Type.Wheel:
+            if isinstance(event, QWheelEvent):
+                # 1. Scrollbar check
+                if config.get("wheel_ignore_scrollbar", True):
+                    width = 0
+                    if hasattr(obj, "width") and isinstance(obj.width, (int, float)):
+                        width = obj.width
+                    elif hasattr(obj, "width") and callable(obj.width):
+                        width = obj.width()
+                    elif hasattr(obj, "geometry"):
+                        width = obj.geometry().width()
+
+                    if width > 0:
+                        try:
+                            # Qt6
+                            x = event.position().x()
+                        except AttributeError:
+                            # Qt5
+                            x = event.pos().x()
+
+                        if x > width - 30:
+                            return False
+
+                # 2. Bottom bar check (only relevant in review)
+                if config.get("wheel_only_on_bottom_bar", False) and mw.state == "review":
+                    is_bottom = False
+                    curr = obj
+                    while curr:
+                        if curr == mw.bottomWeb:
+                            is_bottom = True
+                            break
+                        try:
+                            curr = curr.parent()
+                        except AttributeError:
+                            break
+                    if not is_bottom:
                         return False
-                    # Prevent back/forward navigation
-                    if btn == Button.xbutton1 or btn == Button.xbutton2:
-                        if manager.uses_btn(btn):
-                            return True
-            elif event.type() == QEvent.Type.Wheel:
-                if manager.has_wheel_hotkey and manager.on_mouse_scroll(event):
-                    return True
-            elif event.type() == QEvent.Type.ContextMenu:
-                if manager.enabled and manager.uses_btn(Button.right):
-                    return True  # ignore event
+
+            if manager.has_wheel_hotkey and manager.on_mouse_scroll(event):  # type: ignore[arg-type]
+                return True
+
         if event.type() == QEvent.Type.ChildAdded:
             add_event_filter(event.child())
+
         return False
 
-
 def add_event_filter(object: QObject) -> None:
-    """Add event filter to the widget and its children, to master"""
-    # Event filters are activated in the order they are installed.
     object.installEventFilter(hotmouseEventFilter)
-    child_object = object.children()
-    for w in child_object:
+    for w in object.children():
         add_event_filter(w)
-
-
-@no_type_check
-def install_event_handlers() -> None:
-    for target in WEBVIEW_TARGETS():
-        add_event_filter(target)
-    # Not sure why, but context menu events are not 100% filtered through event filters
-    if hasattr(AnkiWebView, "contextMenuEvent"):
-        AnkiWebView.contextMenuEvent = wrap(
-            AnkiWebView.contextMenuEvent, on_context_menu, "around"
-        )
-    else:
-        AnkiWebView.contextMenuEvent = on_context_menu
-
 
 def on_context_menu(
     target: QWebEngineView,
@@ -355,55 +401,95 @@ def on_context_menu(
     if target not in WEBVIEW_TARGETS():
         _old(target, ev)
         return
+
+    # When in review and the addon is actively using right-click, swallow menu
     if manager.enabled and mw.state == "review" and manager.uses_btn(Button.right):
-        return None  # ignore event
+        return None
+
     _old(target, ev)
 
-
-def add_context_menu_action(wv: AnkiWebView, m: QMenu) -> None:
-    if mw.state == "review" and not manager.enabled:
-        a = m.addAction("Enable Hotmouse")
-        a.triggered.connect(turn_on)
-
+# Safer class lookup for Overview/Reviewer types to avoid import timing issues
+_OverviewT = getattr(getattr(aqt, "overview", object), "Overview", object)
+_ReviewerT = getattr(getattr(aqt, "reviewer", object), "Reviewer", object)
 
 def inject_web_content(web_content: WebContent, context: Optional[Any]) -> None:
-    """Wheel events are not reliably detected with qt's event handler
-    when the reviewer is scrollable. (For long cards)
-    """
-    if not isinstance(context, aqt.reviewer.Reviewer):
+    """Inject wheel detector into Reviewer and Overview webviews."""
+    if not isinstance(context, (_ReviewerT, _OverviewT)):
         return
     addon_package = mw.addonManager.addonFromModule(__name__)
     web_content.js.append(f"/_addons/{addon_package}/web/detect_wheel.js")
 
+def _has_overview_wheel_mappings() -> bool:
+    """Returns True if any o_wheel_* shortcut exists."""
+    sc = mw.addonManager.getConfig(__name__).get("shortcuts", {})
+    return any(k.startswith("o_wheel_") for k in sc.keys())
 
 def handle_js_message(
     handled: Tuple[bool, Any], message: str, context: Any
 ) -> Tuple[bool, Any]:
-    """Receive pycmd message. Returns (handled?, return_value)"""
-    if not isinstance(context, aqt.reviewer.Reviewer):
-        return handled
+    """Receive pycmd message from detect_wheel.js and route via shortcuts."""
     addon_key = "ReviewHotmouse#"
     if not message.startswith(addon_key):
         return handled
 
     req = json.loads(message[len(addon_key) :])  # type: Dict[str, Any]
-    if req["key"] == "wheel":
-        wheel_delta = req["value"]  # type: int
-        wheel_dir = WheelDir.from_web(wheel_delta)
+
+    if req.get("key") == "wheel":
+        # Check if we should ignore this wheel event based on location
+        if config.get("wheel_ignore_scrollbar", True) and req.get("is_scrollbar"):
+            return (False, None)
+
+        if (
+            config.get("wheel_only_on_bottom_bar", False)
+            and not req.get("is_bottom")
+            and mw.state == "review"
+        ):
+            return (False, None)
+
+        wheel_dir = WheelDir.from_web(int(req.get("value", 0)))
         if wheel_dir is None:
             return (False, None)
+
         qbtns = mw.app.mouseButtons()
         executed = manager.handle_scroll(wheel_dir, qbtns)
+
+        # Fallback only if NO overview wheel mapping exists
+        if (
+            not executed
+            and mw.state == "overview"
+            and wheel_dir == WheelDir.DOWN
+            and not _has_overview_wheel_mappings()
+        ):
+            _study_now_from_overview()
+            executed = True
+
         return (executed, executed)
 
     return handled
 
+def install_event_handlers() -> None:
+    for target in WEBVIEW_TARGETS():
+        add_event_filter(target)
 
+    if hasattr(AnkiWebView, "contextMenuEvent"):
+        AnkiWebView.contextMenuEvent = wrap(
+            AnkiWebView.contextMenuEvent, on_context_menu, "around"
+        )
+    else:
+        AnkiWebView.contextMenuEvent = on_context_menu
+
+# Instantiate and register AFTER all functions are defined
 manager = HotmouseManager()
 hotmouseEventFilter = HotmouseEventFilter()
 
-mw.addonManager.setWebExports(__name__, r"web/.*(css|js)")
-gui_hooks.main_window_did_init.append(install_event_handlers)  # 2.1.28
-gui_hooks.webview_will_show_context_menu.append(add_context_menu_action)  # 2.1.20
-gui_hooks.webview_will_set_content.append(inject_web_content)  # 2.1.22
-gui_hooks.webview_did_receive_js_message.append(handle_js_message)  # 2.1.20
+mw.addonManager.setWebExports(__name__, r"web/.*\.(css|js)")
+gui_hooks.main_window_did_init.append(install_event_handlers)
+gui_hooks.webview_will_show_context_menu.append(
+    lambda wv, m: (
+        not manager.enabled
+        and mw.state == "review"
+        and m.addAction("Enable Hotmouse").triggered.connect(turn_on)
+    )
+)
+gui_hooks.webview_will_set_content.append(inject_web_content)
+gui_hooks.webview_did_receive_js_message.append(handle_js_message)

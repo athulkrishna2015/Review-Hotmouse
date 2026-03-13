@@ -23,8 +23,6 @@ This project is a fork and extension of the original “[Review Hotmouse](https:
 
 For more info read original [description](https://ankiweb.net/shared/info/1928346827).
 
-**Developers**: For setup and building instructions, please see **[GITHUB.md](./GITHUB.md)**.
-
 ## Screenshots
 
 <img width="1010" height="675" alt="Screenshot_20251103_171312" src="https://github.com/user-attachments/assets/f4d02fcd-1cf1-4af2-9192-6168746bdb96" />
