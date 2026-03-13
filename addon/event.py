@@ -187,9 +187,16 @@ class HotmouseManager:
         self.refresh_shortcuts()
 
     def add_menu(self) -> None:
-        self.action = QAction("Enable/Disable Review Hotmouse", mw)
+        self.action = QAction("Disable Review Hotmouse", mw)
         self.action.triggered.connect(toggle_on_off)
         mw.form.menuTools.addAction(self.action)
+        
+        # Add Config option
+        from .config import conf
+        self.conf_action = QAction("Review Hotmouse Config", mw)
+        self.conf_action.triggered.connect(conf.open_config)
+        mw.form.menuTools.addAction(self.conf_action)
+
         self.update_menu()
 
     def update_menu(self) -> None:
