@@ -44,15 +44,20 @@ New-Item -ItemType SymbolicLink -Path "$env:APPDATA\Anki2\addons21\review_hotmou
 ```
 
 ### 2. Building and Releasing
-To create a new release:
-1. Ensure your changes are committed.
-2. Run the build script:
-   ```shell
-   python make_ankiaddon.py
-   ```
-   *Note: This will automatically increment the version number in `addon/VERSION` and `addon/manifest.json`.*
-3. Push the version bump to GitHub.
-4. Create a new GitHub Release and attach the generated `.ankiaddon` file.
+
+This repository uses **GitHub Actions** to automate builds:
+
+- **Automated Builds**: Every push to `master` automatically builds the `.ankiaddon` file. You can download the latest version from the "Actions" tab under the "Build Addon" workflow artifacts.
+- **Official Releases**: To create a formal release, use the GitHub "Actions" tab -> "Create Release" workflow. Enter the version number (e.g., `2.9`), and it will automatically:
+  1. Bump the version in all files.
+  2. Commit the change.
+  3. Create a GitHub Release with the bundled addon.
+
+Alternatively, to build locally:
+```shell
+python make_ankiaddon.py
+```
+*Note: Local builds will also increment the minor version number.*
 
 ### 3. Code Standards
 We use **Black** for formatting and **Mypy** for type checking. Please run these before submitting a Pull Request:
