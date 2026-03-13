@@ -1,4 +1,4 @@
-# Review Hotmouse Plus Overview - GitHub Repository
+# Review Hotmouse Plus Overview - Developer Documentation
 
 This repository contains the source code for the **Review Hotmouse Plus Overview** Anki add-on.
 
@@ -9,58 +9,67 @@ This repository contains the source code for the **Review Hotmouse Plus Overview
 - **Report an Issue**: [Issues Page](https://github.com/athulkrishna2015/Review-Hotmouse-Plus-Overview/issues)
 - **Latest Releases**: [Releases Page](https://github.com/athulkrishna2015/Review-Hotmouse-Plus-Overview/releases)
 
-## Development & Contribution
+---
 
-### Local Testing (Symlinking)
+## Project Structure
 
-The fastest way to test your changes is to symlink the `addon/` folder directly into your Anki add-ons directory. This way, any code changes are picked up immediately after restarting Anki.
+- `addon/`: The core add-on code that gets bundled into the `.ankiaddon` file.
+  - `ankiaddonconfig/`: A library for managing the GUI configuration window.
+  - `compat/`: Handles compatibility migrations for users upgrading from older versions.
+  - `web/`: JavaScript files (e.g., `detect_wheel.js`) injected into Anki webviews.
+  - `Support/`: QR codes and assets for the Support tab.
+  - `event.py`: The heart of the add-on; handles mouse events, shortcuts, and menu integration.
+  - `config.py`: Defines the configuration tabs (General, Hotkeys, Support).
+  - `VERSION`: Plain text file containing the current version (e.g., `2.8`).
+- `tests/`: Unit tests for configuration and compatibility logic.
+- `make_ankiaddon.py`: Build script that auto-bumps the version and creates the `.ankiaddon` package.
+- `new_version.py`: Utility script to sync version numbers across `manifest.json` and `VERSION`.
+- `bump.py`: Standalone script to increment the minor version number.
 
-**On Linux (Standard):**
+---
+
+## Development Workflow
+
+### 1. Local Testing (Symlinking)
+The fastest way to test changes is to symlink the `addon/` folder into your Anki add-ons directory:
+
+**Linux:**
 ```shell
 ln -s "$(pwd)/addon" "~/.local/share/Anki2/addons21/review_hotmouse_dev"
 ```
 
-**On Windows (PowerShell as Admin):**
+**Windows (Admin PowerShell):**
 ```powershell
 New-Item -ItemType SymbolicLink -Path "$env:APPDATA\Anki2\addons21\review_hotmouse_dev" -Target "$pwd\addon"
 ```
 
-### Building the `.ankiaddon` file
+### 2. Building and Releasing
+To create a new release:
+1. Ensure your changes are committed.
+2. Run the build script:
+   ```shell
+   python make_ankiaddon.py
+   ```
+   *Note: This will automatically increment the version number in `addon/VERSION` and `addon/manifest.json`.*
+3. Push the version bump to GitHub.
+4. Create a new GitHub Release and attach the generated `.ankiaddon` file.
 
-To bundle the addon for manual installation, run the following command in the project root:
-
+### 3. Code Standards
+We use **Black** for formatting and **Mypy** for type checking. Please run these before submitting a Pull Request:
 ```shell
-python make_ankiaddon.py
-```
-
-This will generate a timestamped file like `Review_Hotmouse_Plus_Overview_YYYYMMDDHHMM.ankiaddon`.
-
-### Formatting & Type Checking
-
-We use [black] for formatting and [mypy] for static type analysis to maintain code quality.
-
-```shell
-# Format the code
 black .
-
-# Check for type errors
 mypy .
 ```
 
-### Environment Setup
-
-You will need the following Python packages for development:
-
-```shell
-pip install aqt PyQt6 mypy black
-```
+---
 
 ## How to Contribute
 
-1. **Fork the Repository**: Create your own copy of the project.
-2. **Make Changes**: Implement your features or bug fixes.
-3. **Verify**: Run the formatting and type checks mentioned above.
-4. **Submit a Pull Request**: Explain your changes and why they are beneficial.
+1. **Fork the Repository**.
+2. **Create a Feature Branch**.
+3. **Implement Changes** (don't forget to add tests if applicable).
+4. **Verify** using symlinking and the code standards tools.
+5. **Submit a Pull Request** with a clear description of your improvements.
 
 ---
 

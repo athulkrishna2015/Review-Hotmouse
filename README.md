@@ -36,6 +36,12 @@ For more info read original [description](https://ankiweb.net/shared/info/192834
 
 # Changelog
 
+## [2.8] 2026-03-13
+
+- Automated the **Build and Release** process for faster updates.
+- Updated internal **Compatibility Layer** and version tracking.
+- Switched to the new repository: [athulkrishna2015/Review-Hotmouse-Plus-Overview](https://github.com/athulkrishna2015/Review-Hotmouse-Plus-Overview).
+
 ## [2.7] 2026-03-13
 
 - Added **Support Tab** with scan-friendly QR codes and copyable donation IDs.
