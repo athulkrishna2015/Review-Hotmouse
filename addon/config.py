@@ -1,10 +1,62 @@
 from typing import NamedTuple, Optional, List, Dict, Tuple, Union, Literal
 
+from aqt import mw
 from aqt.qt import *
 
 from .ankiaddonconfig import *
 
 from .event import ACTION_OPTS, Button, refresh_config
+
+def copy_to_clipboard(text: str) -> None:
+    QApplication.clipboard().setText(text)
+    mw.checkpoint("Copied to clipboard")
+    from aqt.utils import tooltip
+    tooltip(f"Copied: {text}")
+
+def support_tab(conf_window: ConfigWindow) -> None:
+    tab_layout = conf_window.add_tab("Support")
+    scroll = tab_layout.vscroll_layout()
+    
+    scroll.text("<b>Thank you for using Review Hotmouse!</b>", size=16, html=True)
+    scroll.text("If you find this add-on useful, please consider supporting my work.")
+    scroll.space(10)
+
+    addon_path = Path(__file__).parent
+    support_data = [
+        ("UPI", "athulkrishnasv2015-2@okhdfcbank", "UPI.jpg"),
+        ("BTC", "bc1qrrek3m7sr33qujjrktj949wav6mehdsk057cfx", "BTC.jpg"),
+        ("ETH", "0xce6899e4903EcB08bE5Be65E44549fadC3F45D27", "ETH.jpg"),
+    ]
+
+    for name, address, qr_file in support_data:
+        group = scroll.vcontainer()
+        group.text(f"<b>{name}</b>", html=True, size=14)
+        
+        # QR Code
+        qr_path = addon_path / "Support" / qr_file
+        if qr_path.exists():
+            pixmap = QPixmap(str(qr_path))
+            if not pixmap.isNull():
+                label = QLabel()
+                # Scale to scan-friendly size (e.g., 250px)
+                label.setPixmap(pixmap.scaled(250, 250, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                group.addWidget(label)
+        
+        # Address and Copy Button
+        addr_row = group.hlayout()
+        addr_row.text(address, multiline=True)
+        addr_row.space(10)
+        copy_btn = QPushButton("Copy")
+        copy_btn.setFixedWidth(60)
+        copy_btn.clicked.connect(lambda _, a=address: copy_to_clipboard(a))
+        addr_row.addWidget(copy_btn)
+        addr_row.stretch()
+        
+        scroll.hseparator()
+        scroll.space(10)
+
+    scroll.stretch()
 
 def general_tab(conf_window: ConfigWindow) -> None:
     tab = conf_window.add_tab("General")
@@ -313,5 +365,6 @@ def on_window_open(conf_window: ConfigWindow) -> None:
 conf = ConfigManager()
 conf.use_custom_window()
 conf.on_window_open(on_window_open)
+conf.add_config_tab(support_tab)
 conf.add_config_tab(general_tab)
 conf.add_config_tab(hotkey_tabs)
