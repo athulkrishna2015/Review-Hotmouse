@@ -40,13 +40,12 @@ For more info read original [description](https://ankiweb.net/shared/info/192834
 
 ## [2.8.1] 2026-03-18
 
-- Auto-suspend Hotmouse while editing fields with “Edit Field During Review (Cloze)”, then restore it when editing ends.
+- Auto-suspend Hotmouse while editing fields with [“Edit Field During Review (Cloze)](https://ankiweb.net/shared/info/385888438)”, then restore it when editing ends.
 
 ## [2.8] 2026-03-13
 
 - Automated the **Build and Release** process for faster updates.
 - Updated internal **Compatibility Layer** and version tracking.
-- Switched to the new repository: [athulkrishna2015/Review-Hotmouse-Plus-Overview](https://github.com/athulkrishna2015/Review-Hotmouse-Plus-Overview).
 
 ## [2.7] 2026-03-13
 
