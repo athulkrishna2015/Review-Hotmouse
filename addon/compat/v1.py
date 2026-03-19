@@ -43,7 +43,6 @@ def get_and_remove_v1_shortcuts_from_config() -> Dict[str, str]:
         "tooltip",
         "z_debug",
         "undo_whitelist",
-        "version",
         "shortcuts",
     ]
 
