@@ -429,9 +429,25 @@ def on_context_menu(
 
     _old(target, ev)
 
-# Safer class lookup for Overview/Reviewer types to avoid import timing issues
-_OverviewT = getattr(getattr(aqt, "overview", object), "Overview", object)
-_ReviewerT = getattr(getattr(aqt, "reviewer", object), "Reviewer", object)
+# Resolve context classes lazily to avoid import-order timing issues.
+def _aqt_context_type(module_name: str, class_name: str) -> Optional[type]:
+    module = getattr(aqt, module_name, None)
+    cls = getattr(module, class_name, None)
+    return cls if isinstance(cls, type) else None
+
+
+def _is_overview_context(context: Any) -> bool:
+    overview_type = _aqt_context_type("overview", "Overview")
+    return bool(overview_type and isinstance(context, overview_type))
+
+
+def _is_reviewer_context(context: Any) -> bool:
+    reviewer_type = _aqt_context_type("reviewer", "Reviewer")
+    return bool(reviewer_type and isinstance(context, reviewer_type))
+
+
+def _is_review_state() -> bool:
+    return getattr(mw, "state", None) == "review"
 
 _EFDRC_EDIT_REASON = "efdr_edit"
 _EFDRC_FOCUS_PREFIX = "EFDRC!focuson#"
@@ -439,16 +455,20 @@ _EFDRC_RELOAD = "EFDRC!reload"
 
 def _handle_external_editing_message(message: str, context: Any) -> None:
     # "Edit Field During Review (Cloze)" sends these pycmd messages.
-    if not isinstance(context, _ReviewerT):
+    if not isinstance(message, str):
         return
-    if message.startswith(_EFDRC_FOCUS_PREFIX):
-        manager.suspend(_EFDRC_EDIT_REASON)
-    elif message == _EFDRC_RELOAD:
+    normalized = message.strip()
+    if normalized.startswith(_EFDRC_FOCUS_PREFIX):
+        # Context can vary across Anki/EFDRC versions; fallback to review state.
+        if _is_reviewer_context(context) or _is_review_state():
+            manager.suspend(_EFDRC_EDIT_REASON)
+    elif normalized == _EFDRC_RELOAD:
+        # Always clear suspension on reload even if context changed.
         manager.resume(_EFDRC_EDIT_REASON)
 
 def inject_web_content(web_content: WebContent, context: Optional[Any]) -> None:
     """Inject wheel detector into Reviewer and Overview webviews."""
-    if not isinstance(context, (_ReviewerT, _OverviewT)):
+    if not (_is_reviewer_context(context) or _is_overview_context(context)):
         return
     addon_package = mw.addonManager.addonFromModule(__name__)
     web_content.js.append(f"/_addons/{addon_package}/web/detect_wheel.js")
