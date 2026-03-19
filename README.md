@@ -7,7 +7,7 @@ Configurable mouse hotkeys for Anki’s review workflow, now extended to the Ove
 
 This add-on pairs well with [Deck Centerer]
 (https://ankiweb.net/shared/info/1520580564) and  [Audiovisual Feedback](https://ankiweb.net/shared/info/231569866).
-It also plays nicely with “Edit Field During Review (Cloze)” by automatically pausing Hotmouse while a field is being edited and restoring it after the edit completes.
+It also plays nicely with “[Edit Field During Review (Cloze)](https://ankiweb.net/shared/info/385888438)” by automatically pausing Hotmouse while a field is being edited and restoring it after the edit completes.
 
 ## Configuration
 
